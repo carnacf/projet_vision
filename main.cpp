@@ -9,11 +9,15 @@ using namespace cv;
 using namespace std;
 
 int erosion_size = 1;
+float LEFT_COIN_SIZE = 24.25;
 
-float GREEN_COIN_SIZE = 24.25;
+typedef struct Coin{
+    Point center;
+    float rad;
+}Coin;
 
 void eraseNoise(Mat & in,Mat & out){
-    Mat elem = getStructuringElement(0,Size( 2*erosion_size + 1, 2*erosion_size+1 ),Point( erosion_size, erosion_size ));
+    Mat elem = getStructuringElement(0,Size( 2*erosion_size, 2*erosion_size),Point(erosion_size,erosion_size));
 	dilate (in, out, elem);
 	erode (out, out, elem);
     dilate (out,out, elem);
@@ -28,36 +32,26 @@ vector<Vec3f> findCoins(Mat & gray,float minRad,float maxRad,float min_dist){
     return coin;
 }
 
-Vec3f findGreenCoin(std::vector<Vec3f> v){
+Vec3f findLeftCoin(std::vector<Vec3f> v){
     Vec3f greenCoin = v[0];
     int i = 0,index = 0;
     for(Vec3f vec:v){
         if(vec[0] < greenCoin[0]){
-            //cout<<vec<<endl;
             greenCoin = vec;
             index = i;
         }
         i++;
     }
     v.erase(v.begin()+index);
-    //cout<<greenCoin<<endl;
     return greenCoin;
 
 }
 
 void drawCoins(vector<Vec3f> coin,Mat & toDraw,float ratio){
-    //int l=coin.size();
-    //cout<<"\n The number of coins is: "<<l<<"\n\n";
-    // To draw the detected circles.
     for( size_t i = 0; i < coin.size();i++){
         Point center(cvRound(coin[i][0]),cvRound(coin[i][1]));
-        // Detect center
-        // cvRound: Rounds floating point number to nearest integer.
         int radius=cvRound(coin[i][2]);
-        // To get the radius from the second argument of vector coin.
         circle(toDraw,center,3,Scalar(0,255,0),-1,8,0);
-        // circle center
-        //  To get the circle outline.
         circle(toDraw,center,radius,Scalar(0,0,255),3,8,0);
         if(ratio > 0){
             float mm = (coin[i][2]*2)/ratio;
@@ -65,28 +59,62 @@ void drawCoins(vector<Vec3f> coin,Mat & toDraw,float ratio){
             stream<<fixed<<setprecision(2)<<mm;
             string mm_string = stream.str();
             putText(toDraw, mm_string, center,FONT_HERSHEY_SCRIPT_SIMPLEX,0.8, cvScalar(0,0,0),1, CV_AA);
-
         }
-        // circle outline
-        //cout<< " Center location for circle "<<i+1<<" :"<<center<<"\n Diameter : "<<2*radius<<endl;
+    }
+}
+
+void meanCoins(vector<Coin> & mean,vector<Vec3f> & toAdd,float max_dist){
+    if(mean.empty()){
+        for(Vec3f v:toAdd){
+            Coin c;
+            c.center = Point(v[0],v[1]);
+            c.rad = v[2];
+        }
+    }else{
+        vector<Vec3f> toad = toAdd;
+        for(size_t j  = 0;j<mean.size();j++){
+            int index = -1;
+            float min_dist = numeric_limits<float>::max();
+            for(size_t i = 0;i<toad.size();i++){
+                Point difference = mean[j].center-Point(toad[i][0],toad[i][1]);
+                double distance = sqrt( difference.ddot(difference));
+                if(distance < min_dist && distance < max_dist){
+                    index = i;
+                    min_dist = distance;
+                }
+            }
+            mean[j].center = (mean[j].center + Point(toad[index][0],toad[index][1]))/2;
+            mean[j].rad = (mean[j].rad + toad[index][2])/2;
+            mean.erase(mean.begin()+index);
+        }
+        if(!toad.empty()){
+            for(Vec3f v:toAdd){
+                Coin c;
+                c.center = Point(v[0],v[1]);
+                c.rad = v[2];
+            }
+        }
     }
 }
 
 int main(int argc, char** argv){
     VideoCapture cap;
-    // open the default camera, use something different from 0 otherwise;
-    // Check VideoCapture documentation.
     if(!cap.open(0))
         return 0;
 
     int fps = cap.get(CV_CAP_PROP_FPS);
     int nb = 0;
-    cout <<"Camera frame rate : "<<fps<<endl;
+    vector<Coin> mean;
     vector<Vec3f> coin;
     Mat grey,frame;
-    Vec3f greenCoin;
+    Vec3f leftCoin;
     float ratio = 0;
     float minRad = 0,maxRad = 0,min_dist = 0;
+
+
+
+    cout <<"Camera frame rate : "<<fps<<endl;
+
     for(;;){
         if(nb > fps)
             nb = 0;
@@ -99,13 +127,14 @@ int main(int argc, char** argv){
             eraseNoise(grey,grey);
             coin = findCoins(grey,minRad,maxRad,min_dist);
             if(!coin.empty()){
-                greenCoin = findGreenCoin(coin);
-                ratio = (greenCoin[2]*2)/GREEN_COIN_SIZE;
-                maxRad = greenCoin[2]+8*ratio;
-                minRad = greenCoin[2]-11*ratio;
+                leftCoin = findLeftCoin(coin);
+                ratio = (leftCoin[2]*2)/LEFT_COIN_SIZE;
+                maxRad = leftCoin[2]+8*ratio;
+                minRad = leftCoin[2]-11*ratio;
                 min_dist = 16.25 * ratio;
             }
         }
+        meanCoins(mean,coin,min_dist);
         drawCoins(coin,frame,ratio);
 
         //cout<<endl;
