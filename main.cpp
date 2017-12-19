@@ -27,13 +27,20 @@ double argent[8][2] = {
     {0.01,16.25}
 };
 
-float closestCoinTo(Vec3f coin, float ratio)
+float closestCoinTo(Mat & color,Vec3f coin, float ratio)
 {
+    std::cerr << "strat" << '\n';
     float diam = (coin[2]*2)/ratio;
     float dif = numeric_limits<float>::max();
     float temp_dif = 0;
     int ind = 0;
-    for(int i = 0;i<8;i++)
+    int start = 0;
+    if(color.at<Vec3b>(coin[0],coin[1]).val[1] > 180)
+    {
+        start = 5;
+    }
+
+    for(int i = start;i<7;i++)
     {
         temp_dif = argent[i][1] - diam;
         if(temp_dif < 0) temp_dif = 0;
@@ -43,6 +50,7 @@ float closestCoinTo(Vec3f coin, float ratio)
             ind = i;
         }
     }
+    std::cerr << "end" << '\n';
     return argent[ind][0];
 }
 
@@ -65,6 +73,7 @@ Vec3f findLeftCoin(std::vector<Vec3f> & v){
         }
         i++;
     }
+    greenCoin = v[index];
     return greenCoin;
 }
 
@@ -76,7 +85,7 @@ void drawCoins(vector<Vec3f> coin,Mat & toDraw,float ratio){
         circle(toDraw,center,3,Scalar(0,255,0),-1,8,0);
         circle(toDraw,center,radius,Scalar(0,0,255),3,8,0);
         if(ratio > 0){
-            float mm = closestCoinTo(coin[i],ratio);
+            float mm = closestCoinTo(toDraw,coin[i],ratio);
             v.push_back(mm);
             stringstream stream;
             stream<<fixed<<setprecision(2)<<mm;
