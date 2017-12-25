@@ -29,16 +29,15 @@ double argent[8][2] = {
 
 float closestCoinTo(Mat & color,Vec3f coin, float ratio)
 {
-    std::cerr << "strat" << '\n';
     float diam = (coin[2]*2)/ratio;
     float dif = numeric_limits<float>::max();
     float temp_dif = 0;
     int ind = 0;
     int start = 0;
-    if(color.at<Vec3b>(coin[0],coin[1]).val[1] > 180)
+    /*if(color.at<Vec3b>(coin[0],coin[1]).val[1] > 180)
     {
         start = 5;
-    }
+    }*/
 
     for(int i = start;i<7;i++)
     {
@@ -50,7 +49,6 @@ float closestCoinTo(Mat & color,Vec3f coin, float ratio)
             ind = i;
         }
     }
-    std::cerr << "end" << '\n';
     return argent[ind][0];
 }
 
@@ -160,8 +158,6 @@ int main(int argc, char** argv){
     float ratio = 0;
     float minRad = 0,maxRad = 0,min_dist = 0;
 
-
-
     cout <<"Camera frame rate : "<<fps<<endl;
 
     while(true){
@@ -173,16 +169,13 @@ int main(int argc, char** argv){
 
         if(nb%(fps/10) == 0){
             cvtColor(frame,grey,CV_BGR2GRAY);
-            equalizeHist(grey,grey);
+            //equalizeHist(grey,grey);
             eraseNoise(grey,grey);
             GaussianBlur(grey,grey,Size(11,11),0);
             medianBlur(grey,grey,7);
 
-
-
             //medianBlur(grey,grey,7);
             //GaussianBlur(grey,grey,Size(11,11),0);
-
 
             imshow("file",grey);
             Mat canny;
